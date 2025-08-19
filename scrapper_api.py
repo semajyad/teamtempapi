@@ -1,31 +1,27 @@
+# teamtemp_multi_sources_with_tribe.py
 from __future__ import annotations
-import os, re, time, json, uuid, tempfile
+import os, re, time, json
 from io import BytesIO
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import httpx
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, HTTPException, Query, Path
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
-from pydantic import BaseModel, HttpUrl
 
 from storage_pg import init_and_seed, list_sources, add_source, delete_source
 
-DEFAULT_SOURCE = os.getenv("TEAMTEMP_URL", "https://teamtempapp.herokuapp.com/bvc/sDtXkQWe")
-SOURCES_JSON = os.getenv("SOURCES_JSON", "")
-
-# initialize DB and seed if empty
-init_and_seed(default_source=DEFAULT_SOURCE, sources_json=SOURCES_JSON)
-
 # ---------------- Config
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-SOURCES_FILE = os.getenv("TEAMTEMP_SOURCES_FILE", "teamtemp_sources.json")
 CACHE_TTL = int(os.getenv("CACHE_TTL_SEC", "600"))
 DEFAULT_SOURCE = os.getenv("TEAMTEMP_URL", "https://teamtempapp.herokuapp.com/bvc/sDtXkQWe")
 SOURCES_JSON = os.getenv("SOURCES_JSON", "")
-APP_VERSION = "4.3.0"
+APP_VERSION = "4.3.1"
+
+# initialize DB and seed if empty (idempotent)
+init_and_seed(default_source=DEFAULT_SOURCE, sources_json=SOURCES_JSON)
 
 # ---------------- Models
 @dataclass
@@ -34,14 +30,6 @@ class Record:
     team: str
     value: float
     tribe: str
-
-class SourceIn(BaseModel):
-    url: HttpUrl
-    tribe: str = ""
-
-class Source(SourceIn):
-    id: str
-    created_ts: float
 
 # ---------------- App
 app = FastAPI(title="TeamTemp Historical Scraper API", version=APP_VERSION)
@@ -53,65 +41,6 @@ app.add_middleware(
 
 _client = httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30.0, follow_redirects=True)
 _cache: Dict[str, object] = {"ts": 0.0, "data": []}
-
-# ---------------- Persistence helpers
-def _ensure_ids(rows: List[dict]) -> List[dict]:
-    out = []
-    for r in rows or []:
-        if not isinstance(r, dict):
-            continue
-        url = str(r.get("url", "")).strip()
-        if not url:
-            continue
-        tribe = str(r.get("tribe", "")).strip()
-        rid = r.get("id") or uuid.uuid4().hex
-        cts = float(r.get("created_ts") or time.time())
-        out.append({"id": rid, "url": url, "tribe": tribe, "created_ts": cts})
-    return out
-
-def _atomic_write_json(path: str, data: object) -> None:
-    d = os.path.dirname(path) or "."
-    os.makedirs(d, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", delete=False, dir=d, encoding="utf-8") as tmp:
-        json.dump(data, tmp, ensure_ascii=False, indent=2)
-        tmp.flush()
-        os.fsync(tmp.fileno())
-        tmp_path = tmp.name
-    os.replace(tmp_path, path)
-
-def _seed_sources_if_needed() -> None:
-    if os.path.exists(SOURCES_FILE):
-        return
-    seed: List[dict] = []
-    if SOURCES_JSON:
-        try:
-            seed = [s for s in json.loads(SOURCES_JSON) if isinstance(s, dict)]
-        except Exception:
-            seed = []
-    if not seed and DEFAULT_SOURCE:
-        seed = [{"url": DEFAULT_SOURCE, "tribe": ""}]
-    if seed:
-        _atomic_write_json(SOURCES_FILE, _ensure_ids(seed))
-
-def _read_sources() -> List[dict]:
-    _seed_sources_if_needed()
-    if os.path.exists(SOURCES_FILE):
-        try:
-            with open(SOURCES_FILE, "r", encoding="utf-8") as f:
-                rows = json.load(f)
-        except Exception:
-            rows = []
-    else:
-        rows = []
-    rows = _ensure_ids(rows)
-    rows.sort(key=lambda r: (float(r.get("created_ts", 0.0)), r.get("id", "")))
-    return rows
-
-def _write_sources(rows: List[dict]) -> List[dict]:
-    rows = _ensure_ids(rows)
-    rows.sort(key=lambda r: (float(r.get("created_ts", 0.0)), r.get("id", "")))
-    _atomic_write_json(SOURCES_FILE, rows)
-    return rows
 
 # ---------------- Scraper
 HISTORICAL_RE = re.compile(
@@ -155,6 +84,7 @@ def _rows_to_records(payload: dict, tribe: str) -> List[Record]:
     if not cols or not rows:
         return []
     labels = [str(c.get("label") or c.get("id") or f"col{i}") for i, c in enumerate(cols[1:], start=1)]
+    # last column is "Average" in this dataset
     if labels and labels[-1].strip().lower() == "average":
         labels = labels[:-1]
     out: List[Record] = []
@@ -254,25 +184,23 @@ def version():
     return {"version": APP_VERSION}
 
 @app.get("/sources")
-def list_sources():
-    rows = _read_sources()
-    return {"sources": rows}
+def sources_list_route():
+    return {"sources": list_sources()}
 
-@app.post("/sources", response_model=Source)
-def add_source(src: SourceIn):
-    rows = _read_sources()
-    row = {"id": uuid.uuid4().hex, "url": str(src.url), "tribe": src.tribe, "created_ts": time.time()}
-    rows.append(row)
-    rows = _write_sources(rows)
-    return row  # return the created row
+@app.post("/sources")
+def sources_add_route(payload: dict):
+    url = str(payload.get("url","")).strip()
+    tribe = str(payload.get("tribe","")).strip()
+    if not url:
+        raise HTTPException(400, "url required")
+    row = add_source(url, tribe)
+    _cache["data"] = []  # invalidate cache
+    return row
 
 @app.delete("/sources/{sid}")
-def delete_source(sid: str = Path(..., description="Source id")):
-    rows = _read_sources()
-    new = [s for s in rows if s.get("id") != sid]
-    if len(new) == len(rows):
+def sources_delete_route(sid: str):
+    if not delete_source(sid):
         raise HTTPException(404, "Not found")
-    _write_sources(new)
     _cache["data"] = []
     return {"ok": True}
 
@@ -283,7 +211,7 @@ def get_data(force: bool = Query(False)):
         return _cache["data"]
     merged: List[Dict[str, object]] = []
     errors: List[Tuple[str, str]] = []
-    for s in _read_sources():
+    for s in list_sources():  # <-- from Postgres
         try:
             for rec in scrape_one(s["url"], s.get("tribe", "")):
                 merged.append(rec.__dict__)
@@ -324,4 +252,3 @@ def export_excel(force: bool = Query(False)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("teamtemp_multi_sources_with_tribe:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=False)
-
