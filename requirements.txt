@@ -1,6 +1,7 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-httpx==0.27.2
-beautifulsoup4==4.12.3
-pydantic==2.8.2
-openpyxl==3.1.5
+fastapi
+uvicorn
+httpx
+beautifulsoup4
+openpyxl
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
