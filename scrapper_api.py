@@ -11,6 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, HttpUrl
 
+from storage_pg import init_and_seed, list_sources, add_source, delete_source
+
+DEFAULT_SOURCE = os.getenv("TEAMTEMP_URL", "https://teamtempapp.herokuapp.com/bvc/sDtXkQWe")
+SOURCES_JSON = os.getenv("SOURCES_JSON", "")
+
+# initialize DB and seed if empty
+init_and_seed(default_source=DEFAULT_SOURCE, sources_json=SOURCES_JSON)
+
 # ---------------- Config
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 SOURCES_FILE = os.getenv("TEAMTEMP_SOURCES_FILE", "teamtemp_sources.json")
@@ -316,3 +324,4 @@ def export_excel(force: bool = Query(False)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("teamtemp_multi_sources_with_tribe:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=False)
+
