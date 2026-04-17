@@ -38,32 +38,48 @@ CACHE_TTL = int(os.getenv("CACHE_TTL_SEC", "600"))
 HEROKU_APP_NAME = os.getenv("HEROKU_APP_NAME")
 HEROKU_API_KEY  = os.getenv("HEROKU_API_KEY")
 
-# Sprint config — set via env vars in Railway
-# SPRINT_ANCHOR: ISO date of the first day of Sprint 1 (e.g. "2024-07-22")
-# SPRINT_LENGTH_DAYS: sprint duration in days (default 14)
-# SPRINT_GRACE_DAYS: days after sprint end that still map to that sprint (default 6)
-_SPRINT_ANCHOR_RAW = os.getenv("SPRINT_ANCHOR", "")
-SPRINT_ANCHOR: Optional[date] = (
-    date.fromisoformat(_SPRINT_ANCHOR_RAW) if _SPRINT_ANCHOR_RAW else None
-)
-SPRINT_LENGTH_DAYS = int(os.getenv("SPRINT_LENGTH_DAYS", "14"))
+# Days after a sprint ends that still map back to that sprint (SM sent survey late)
 SPRINT_GRACE_DAYS = int(os.getenv("SPRINT_GRACE_DAYS", "6"))
 
+# FY26 sprint schedule — label, start, end
+SPRINT_SCHEDULE: List[Tuple[str, date, date]] = [
+    ("Q1-Sprint 1",         date(2025,  7,  8), date(2025,  7, 21)),
+    ("Q1-Sprint 2",         date(2025,  7, 22), date(2025,  8,  4)),
+    ("Q1-Sprint 3",         date(2025,  8,  5), date(2025,  8, 18)),
+    ("Q1-Sprint 4",         date(2025,  8, 19), date(2025,  9,  1)),
+    ("Q1-Sprint 5",         date(2025,  9,  2), date(2025,  9, 15)),
+    ("Q1-Sprint 6 (IP)",    date(2025,  9, 16), date(2025,  9, 29)),
+    ("Q2-Sprint 1",         date(2025,  9, 30), date(2025, 10, 13)),
+    ("Q2-Sprint 2",         date(2025, 10, 14), date(2025, 10, 27)),
+    ("Q2-Sprint 3",         date(2025, 10, 28), date(2025, 11, 10)),
+    ("Q2-Sprint 4",         date(2025, 11, 11), date(2025, 11, 24)),
+    ("Q2-Sprint 5",         date(2025, 11, 25), date(2025, 12,  8)),
+    ("Q2-Sprint 6 (IP)",    date(2025, 12,  9), date(2025, 12, 22)),
+    ("Q3-Holiday",          date(2025, 12, 22), date(2026,  1,  4)),
+    ("Q3-Sprint 1",         date(2026,  1,  6), date(2026,  1, 19)),
+    ("Q3-Sprint 2",         date(2026,  1, 20), date(2026,  2,  2)),
+    ("Q3-Sprint 3",         date(2026,  2,  3), date(2026,  2, 16)),
+    ("Q3-Sprint 4",         date(2026,  2, 17), date(2026,  3,  2)),
+    ("Q3-Sprint 5",         date(2026,  3,  3), date(2026,  3, 16)),
+    ("Q3-Sprint 6 (IP)",    date(2026,  3, 17), date(2026,  3, 30)),
+    ("Q4-Sprint 1",         date(2026,  3, 31), date(2026,  4, 13)),
+    ("Q4-Sprint 2",         date(2026,  4, 14), date(2026,  4, 27)),
+    ("Q4-Sprint 3",         date(2026,  4, 28), date(2026,  5, 11)),
+    ("Q4-Sprint 4",         date(2026,  5, 12), date(2026,  5, 25)),
+    ("Q4-Sprint 5",         date(2026,  5, 26), date(2026,  6,  8)),
+    ("Q4-Sprint 6 (IP)",    date(2026,  6,  9), date(2026,  6, 22)),
+]
 
-def sprint_for_date(d: date) -> Optional[int]:
-    """Return 1-based sprint number for a given date, or None if SPRINT_ANCHOR not set."""
-    if SPRINT_ANCHOR is None:
-        return None
-    delta = (d - SPRINT_ANCHOR).days
-    if delta < 0:
-        return None
-    sprint_num = delta // SPRINT_LENGTH_DAYS
-    days_into_sprint = delta % SPRINT_LENGTH_DAYS
-    # If we're within the grace window at the start of a sprint,
-    # snap back to the previous sprint (SM sent it late)
-    if days_into_sprint < SPRINT_GRACE_DAYS and sprint_num > 0:
-        sprint_num -= 1
-    return sprint_num + 1  # 1-indexed
+
+def sprint_for_date(d: date) -> Optional[str]:
+    """Return sprint label for a date, with grace window for late SM submissions."""
+    for label, start, end in SPRINT_SCHEDULE:
+        if start <= d <= end:
+            return label
+    for label, start, end in SPRINT_SCHEDULE:
+        if end < d <= end + timedelta(days=SPRINT_GRACE_DAYS):
+            return label
+    return None
 
 # -------------------- DATA MODEL --------------------
 @dataclass
