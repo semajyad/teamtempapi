@@ -282,11 +282,11 @@ def _rows_to_records(payload: dict, tribe: str) -> List[Record]:
                     Record(
                         date=date_iso,
                         team=team,
-                        value=float(v),
+                        value=round(float(v), 2),
                         tribe=tribe,
                         responses=responses,
-                        min_value=min_v,
-                        max_value=max_v,
+                        min_value=round(min_v, 2) if min_v is not None else None,
+                        max_value=round(max_v, 2) if max_v is not None else None,
                     )
                 )
             except Exception:
