@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os, re, time, json, uuid, tempfile, hashlib
+from datetime import date, timedelta
 from io import BytesIO
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -36,6 +37,33 @@ SOURCES_JSON = os.getenv("SOURCES_JSON", "")
 CACHE_TTL = int(os.getenv("CACHE_TTL_SEC", "600"))
 HEROKU_APP_NAME = os.getenv("HEROKU_APP_NAME")
 HEROKU_API_KEY  = os.getenv("HEROKU_API_KEY")
+
+# Sprint config — set via env vars in Railway
+# SPRINT_ANCHOR: ISO date of the first day of Sprint 1 (e.g. "2024-07-22")
+# SPRINT_LENGTH_DAYS: sprint duration in days (default 14)
+# SPRINT_GRACE_DAYS: days after sprint end that still map to that sprint (default 6)
+_SPRINT_ANCHOR_RAW = os.getenv("SPRINT_ANCHOR", "")
+SPRINT_ANCHOR: Optional[date] = (
+    date.fromisoformat(_SPRINT_ANCHOR_RAW) if _SPRINT_ANCHOR_RAW else None
+)
+SPRINT_LENGTH_DAYS = int(os.getenv("SPRINT_LENGTH_DAYS", "14"))
+SPRINT_GRACE_DAYS = int(os.getenv("SPRINT_GRACE_DAYS", "6"))
+
+
+def sprint_for_date(d: date) -> Optional[int]:
+    """Return 1-based sprint number for a given date, or None if SPRINT_ANCHOR not set."""
+    if SPRINT_ANCHOR is None:
+        return None
+    delta = (d - SPRINT_ANCHOR).days
+    if delta < 0:
+        return None
+    sprint_num = delta // SPRINT_LENGTH_DAYS
+    days_into_sprint = delta % SPRINT_LENGTH_DAYS
+    # If we're within the grace window at the start of a sprint,
+    # snap back to the previous sprint (SM sent it late)
+    if days_into_sprint < SPRINT_GRACE_DAYS and sprint_num > 0:
+        sprint_num -= 1
+    return sprint_num + 1  # 1-indexed
 
 # -------------------- DATA MODEL --------------------
 @dataclass
@@ -379,7 +407,12 @@ def get_data(force: bool = Query(False), response: Response = None):
     for s in list_sources():
         try:
             for rec in scrape_one(s["url"], s.get("tribe","")):
-                merged.append(rec.__dict__)
+                row = rec.__dict__
+                try:
+                    row["sprint"] = sprint_for_date(date.fromisoformat(rec.date))
+                except Exception:
+                    row["sprint"] = None
+                merged.append(row)
         except Exception:
             pass
     _cache["ts"] = now
@@ -390,13 +423,14 @@ def _excel_from_rows(rows: List[Dict[str, object]]) -> BytesIO:
     from openpyxl import Workbook
     from openpyxl.utils import get_column_letter
     wb = Workbook(); ws = wb.active; ws.title = "TeamTemp"
-    header = ["tribe","team","date","value","responses","min","max"]
+    header = ["tribe","team","date","sprint","value","responses","min","max"]
     ws.append(header)
     for r in rows:
         ws.append([
             r.get("tribe",""),
             r.get("team",""),
             r.get("date",""),
+            r.get("sprint",""),
             r.get("value",""),
             r.get("responses",""),
             r.get("min_value",""),
