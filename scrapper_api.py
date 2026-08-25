@@ -20,13 +20,18 @@ USER_AGENT = (
 
 # default list shown in your screenshot - guarantees UI is populated on fresh deploy
 DEFAULT_SOURCES = [
-    {"url": "https://teamtempapp.herokuapp.com/bvc/sDtXkQWe", "tribe": "SNZ Protect and Grow My Business"},
-    {"url": "https://teamtempapp.herokuapp.com/bvc/qeGUw5jY", "tribe": "SNZ Service Excellence"},
     {"url": "https://teamtempapp.herokuapp.com/bvc/JvOZKWkI", "tribe": "SNZ Claims & Distribution"},
-    {"url": "https://teamtempapp.herokuapp.com/bvc/HJJOxKb07".replace("x",""), "tribe": "SNZ Insurance Tech"},  # HJJOkb07
-    {"url": "https://teamtempapp.herokuapp.com/bvc/Js7ly9PN", "tribe": "SNZ Run and Core Platforms"},
     {"url": "https://teamtempapp.herokuapp.com/bvc/mCO67NyY", "tribe": "SNZ Infrastructure"},
     {"url": "https://teamtempapp.herokuapp.com/bvc/DiMD4ZvL", "tribe": "SNZ Data CoE"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/3nz7RT89", "tribe": "SNZ Growth & Distribution"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/IYosWZZo", "tribe": "SNZ Insurance Integrity"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/HJJOKb07", "tribe": "SNZ Insurance Tech"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/qTNLq4YA", "tribe": "SNZ Insurance Tech"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/sDtXkQWe", "tribe": "SNZ Protect and Grow My Business"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/Js7ly9PN", "tribe": "SNZ Run and Core Platforms"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/qeGUw5jY", "tribe": "SNZ Service Excellence"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/AAeEvvMc", "tribe": "SNZ Service Transformation"},
+    {"url": "https://teamtempapp.herokuapp.com/bvc/asfhUa04", "tribe": "SNZ TechOps"},
 ]
 
 # storage file inside the dyno/container
