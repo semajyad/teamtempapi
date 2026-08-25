@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 
 # ---------------------- CONFIG ----------------------
-APP_VERSION = "file-8.0.0"
+APP_VERSION = "file-8.1.0"
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -41,7 +41,7 @@ HEROKU_API_KEY  = os.getenv("HEROKU_API_KEY")
 # Days after a sprint ends that still map back to that sprint (SM sent survey late)
 SPRINT_GRACE_DAYS = int(os.getenv("SPRINT_GRACE_DAYS", "6"))
 
-# FY26 sprint schedule — label, start, end
+# FY26/FY27 sprint schedule — label, start, end
 SPRINT_SCHEDULE: List[Tuple[str, date, date]] = [
     ("Q1-Sprint 1",         date(2025,  7,  8), date(2025,  7, 21)),
     ("Q1-Sprint 2",         date(2025,  7, 22), date(2025,  8,  4)),
@@ -68,6 +68,32 @@ SPRINT_SCHEDULE: List[Tuple[str, date, date]] = [
     ("Q4-Sprint 4",         date(2026,  5, 12), date(2026,  5, 25)),
     ("Q4-Sprint 5",         date(2026,  5, 26), date(2026,  6,  8)),
     ("Q4-Sprint 6 (IP)",    date(2026,  6,  9), date(2026,  6, 22)),
+    ("FY27 Q1-Sprint 1",    date(2026,  6, 23), date(2026,  7,  6)),
+    ("FY27 Q1-Sprint 2",    date(2026,  7,  7), date(2026,  7, 20)),
+    ("FY27 Q1-Sprint 3",    date(2026,  7, 21), date(2026,  8,  3)),
+    ("FY27 Q1-Sprint 4",    date(2026,  8,  4), date(2026,  8, 17)),
+    ("FY27 Q1-Sprint 5",    date(2026,  8, 18), date(2026,  8, 31)),
+    ("FY27 Q1-Sprint 6",    date(2026,  9,  1), date(2026,  9, 14)),
+    ("FY27 Q1-Sprint 7",    date(2026,  9, 15), date(2026,  9, 28)),
+    ("FY27 Q2-Sprint 1",    date(2026,  9, 29), date(2026, 10, 12)),
+    ("FY27 Q2-Sprint 2",    date(2026, 10, 13), date(2026, 10, 26)),
+    ("FY27 Q2-Sprint 3",    date(2026, 10, 27), date(2026, 11,  9)),
+    ("FY27 Q2-Sprint 4",    date(2026, 11, 10), date(2026, 11, 23)),
+    ("FY27 Q2-Sprint 5",    date(2026, 11, 24), date(2026, 12,  7)),
+    ("FY27 Q2-Sprint 6",    date(2026, 12,  8), date(2026, 12, 21)),
+    ("FY27 Q3-Holiday",     date(2026, 12, 22), date(2027,  1,  4)),
+    ("FY27 Q3-Sprint 1",    date(2027,  1,  5), date(2027,  1, 18)),
+    ("FY27 Q3-Sprint 2",    date(2027,  1, 19), date(2027,  2,  1)),
+    ("FY27 Q3-Sprint 3",    date(2027,  2,  2), date(2027,  2, 15)),
+    ("FY27 Q3-Sprint 4",    date(2027,  2, 16), date(2027,  3,  1)),
+    ("FY27 Q3-Sprint 5",    date(2027,  3,  2), date(2027,  3, 15)),
+    ("FY27 Q3-Sprint 6",    date(2027,  3, 16), date(2027,  3, 29)),
+    ("FY27 Q4-Sprint 1",    date(2027,  3, 30), date(2027,  4, 12)),
+    ("FY27 Q4-Sprint 2",    date(2027,  4, 13), date(2027,  4, 26)),
+    ("FY27 Q4-Sprint 3",    date(2027,  4, 27), date(2027,  5, 10)),
+    ("FY27 Q4-Sprint 4",    date(2027,  5, 11), date(2027,  5, 24)),
+    ("FY27 Q4-Sprint 5",    date(2027,  5, 25), date(2027,  6,  7)),
+    ("FY27 Q4-Sprint 6",    date(2027,  6,  8), date(2027,  6, 21)),
 ]
 
 
@@ -474,3 +500,4 @@ def export_excel(force: bool = Query(False), response: Response = None):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("teamtemp_multi_sources_with_tribe:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=False)
+
